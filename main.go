@@ -23,6 +23,7 @@ var (
 	environment      string
 	skydnsUrl        string
 	secret           string
+	host 						 string
 	ttl              int
 	beat             int
 	numberOfHandlers int
@@ -38,6 +39,7 @@ func init() {
 	flag.StringVar(&secret, "secret", "", "skydns secret")
 	flag.StringVar(&domain, "domain", "", "same domain passed to skydns")
 	flag.StringVar(&environment, "environment", "dev", "environment name where service is running")
+	flag.StringVar(&host, "host", "", "host name reported to skydns")
 	flag.IntVar(&ttl, "ttl", 60, "default ttl to use when registering a service")
 	flag.IntVar(&beat, "beat", 0, "heartbeat interval")
 	flag.IntVar(&numberOfHandlers, "workers", 10, "number of concurrent workers")
@@ -134,10 +136,17 @@ func restoreContainers() error {
 
 // <uuid>.<host>.<region>.<version>.<service>.<environment>.skydns.local
 func createService(container *docker.Container) *msg.Service {
+	var serviceHost string
+	if host != "" {
+		serviceHost = host
+	} else {
+		serviceHost = container.NetworkSettings.IpAddress
+	}
+
 	return &msg.Service{
 		Name:        utils.CleanImageImage(container.Image), // Service name
 		Version:     utils.RemoveSlash(container.Name),      // Instance of the service
-		Host:        container.NetworkSettings.IpAddress,
+		Host:        serviceHost,
 		Environment: environment, // testing, prod, dev
 		TTL:         uint32(ttl), // 60 seconds
 		Port:        80,          // TODO: How to handle multiple ports
